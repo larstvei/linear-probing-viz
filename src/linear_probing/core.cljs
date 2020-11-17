@@ -88,9 +88,14 @@
 (defn resize [state k]
   (rehash (assoc state :N k)))
 
+(defn set-text-size []
+  (let [font-size (/ (min (q/width) (q/height)) 25.0)
+        zoom (/ (- (.-outerWidth js/window) 1.0) (.-innerWidth js/window))]
+    (q/text-size (* zoom 20))))
+
 (defn setup []
   (q/text-font "Roboto Mono")
-  (q/text-size 20)
+  (set-text-size)
   (q/fill 255)
   (q/frame-rate 30)
   (q/color-mode :hsb)
@@ -147,7 +152,9 @@
 
 (defn windowresize-handler []
   (q/with-sketch (q/get-sketch-by-id "linear-probing")
-    (apply q/resize-sketch (get-size))))
+    (let [[w h] (get-size)]
+      (q/resize-sketch w h)
+      (set-text-size))))
 
 (defn ^:export run-sketch []
   (let [[w h] (get-size)
