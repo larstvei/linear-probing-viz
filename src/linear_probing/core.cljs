@@ -121,7 +121,9 @@
           (q/text (str k) 0 0))))))
 
 (defn do-op [op op-default]
-  (let [k (.-value (.getElementById js/document "k"))]
+  (let [field (.getElementById js/document "k")
+        k (.-value field)]
+    (set! (.-value field) "")
     (q/with-sketch (q/get-sketch-by-id "linear-probing")
       (if (empty? k)
         (swap! (q/state-atom) op-default)
