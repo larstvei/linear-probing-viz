@@ -75,6 +75,12 @@
 (defn insert-random-node [state]
   (insert-node state (rand-int 1000)))
 
+(defn bulk-insert
+  ([state] (insert-random-node state))
+  ([state k]
+   (let [rands (repeatedly k #(rand-int 1000))]
+     (reduce insert-node state rands))))
+
 (defn delete-random-node [{:keys [A] :as state}]
   (let [ks (filterv identity A)]
     (if (empty? ks)
@@ -154,6 +160,7 @@
   (case (q/key-as-keyword)
     :r (do-op resize rehash)
     :i (do-op insert-node insert-random-node)
+    :b (do-op bulk-insert bulk-insert)
     :d (do-op delete-node delete-random-node)
     :h (rehash state)
     :v (next-view state)
@@ -176,11 +183,13 @@
 (defn ^:export run-sketch []
   (let [[w h] (get-size)
         insert-btn (.getElementById js/document "insert")
+        bulk-insert-btn (.getElementById js/document "bulk-insert")
         delete-btn (.getElementById js/document "delete")
         resize-btn (.getElementById js/document "resize")
         view-btn (.getElementById js/document "view")]
     (.addEventListener js/window "resize" windowresize-handler)
     (.addEventListener insert-btn "click" #(do-op insert-node insert-random-node))
+    (.addEventListener bulk-insert-btn "click" #(do-op bulk-insert bulk-insert))
     (.addEventListener delete-btn "click" #(do-op delete-node delete-random-node))
     (.addEventListener resize-btn "click" #(do-op resize rehash))
     (.addEventListener view-btn "click" #(do-op next-view next-view))
