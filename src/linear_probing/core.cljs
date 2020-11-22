@@ -55,12 +55,14 @@
                       (fill-hole j))))))
 
 (defn delete-node [{:keys [N A] :as state} k]
-  (loop [i (mod k N)]
-    (cond (nil? (A i)) state
-          (not= (A i) k) (recur (mod (inc i) N))
-          :else (-> (assoc-in state [:A i] nil)
-                    (update :nodes dissoc k)
-                    (fill-hole i)))))
+  (if-not ((set A) k)
+    (update state :nodes dissoc k)
+    (loop [i (mod k N)]
+      (cond (nil? (A i)) state
+            (not= (A i) k) (recur (mod (inc i) N))
+            :else (-> (assoc-in state [:A i] nil)
+                      (update :nodes dissoc k)
+                      (fill-hole i))))))
 
 (defn rehash [{:keys [N] :as state}]
   (-> (assoc state :A (vec (repeat N nil)))
