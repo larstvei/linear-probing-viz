@@ -3,6 +3,8 @@
             [clojure.core.matrix :as mat]
             [quil.middleware :as m]))
 
+(def views (cycle [:text :dots]))
+
 (defn mapvals [f m]
   (into {} (for [[k v] m] [k (f v)])))
 
@@ -103,7 +105,8 @@
   (let [N 10]
     {:d (get-d) :N N
      :nodes {}
-     :A (vec (repeat N nil))}))
+     :A (vec (repeat N nil))
+     :view :text}))
 
 (defn update-state [{:keys [d N A nodes] :as state}]
   (-> (assoc state :d (get-d))
@@ -111,19 +114,28 @@
       (update :nodes (partial mapvals (partial set-target d N A)))
       (update :A insert-nearby d N nodes)))
 
-(defn draw-state [{:keys [d N nodes]}]
+(defn draw-state [{:keys [d N nodes view]}]
   (q/background 0)
   (q/translate (/ (q/width) 2) (/ (q/height) 2))
+  (q/no-stroke)
+  (q/no-fill)
   (dotimes [i N]
-    (q/with-fill [(* 256 (/ i N)) 255 255 100]
-      (let [[x y] (i->pos (* 1.15 d) N i)]
-        (q/text (str i) x y))))
+    (let [[x y] (i->pos (* 1.15 d) N i)
+          [x1 y1] (i->pos (* 1.15 d) N i)
+          [x2 y2] (i->pos (* 1.05 d) N i)]
+      (q/stroke (* 256 (/ i N)) 255 255 100)
+      (q/fill (* 256 (/ i N)) 255 255 100)
+      (case view
+        :text (q/text (str i) x y)
+        :dots (q/line x1 y1 x2 y2))))
 
   (doseq [[k {:keys [pos]}] nodes]
     (q/with-fill [(* 256 (/ (mod k N) N)) 255 255]
       (q/with-translation pos
         (q/with-rotation [(pos->angle pos)]
-          (q/text (str k) 0 0))))))
+          (case view
+            :text (q/text (str k) 0 0)
+            :dots (q/ellipse 0 0 5 5)))))))
 
 (defn do-op [op op-default]
   (let [field (.getElementById js/document "k")
@@ -134,12 +146,17 @@
         (swap! (q/state-atom) op-default)
         (swap! (q/state-atom) op (int k))))))
 
+(defn next-view [{:keys [view] :as state}]
+  (let [new-view (second (drop-while (partial not= view) views))]
+    (assoc state :view new-view)))
+
 (defn key-handler [state event]
   (case (q/key-as-keyword)
     :r (do-op resize rehash)
     :i (do-op insert-node insert-random-node)
     :d (do-op delete-node delete-random-node)
     :h (rehash state)
+    :v (next-view state)
     :up (-> (update state :N inc) rehash)
     :down (-> (update state :N dec) (update :N max 1) rehash)
     state))
@@ -160,11 +177,13 @@
   (let [[w h] (get-size)
         insert-btn (.getElementById js/document "insert")
         delete-btn (.getElementById js/document "delete")
-        resize-btn (.getElementById js/document "resize")]
+        resize-btn (.getElementById js/document "resize")
+        view-btn (.getElementById js/document "view")]
     (.addEventListener js/window "resize" windowresize-handler)
     (.addEventListener insert-btn "click" #(do-op insert-node insert-random-node))
     (.addEventListener delete-btn "click" #(do-op delete-node delete-random-node))
     (.addEventListener resize-btn "click" #(do-op resize rehash))
+    (.addEventListener view-btn "click" #(do-op next-view next-view))
     (q/defsketch linear-probing
       :host "linear-probing"
       :size [w h]
