@@ -87,6 +87,10 @@
       state
       (delete-node state (rand-nth ks)))))
 
+(defn clear [state & _discard-args]
+  (-> (assoc state :nodes {})
+      (update :A (partial mapv empty))))
+
 (defn pos->angle [pos]
   (let [theta (apply q/atan2 (reverse pos))]
     (if (< (- (/ q/PI 2)) theta (/ q/PI 2))
@@ -164,6 +168,7 @@
     :d (do-op delete-node delete-random-node)
     :h (rehash state)
     :v (next-view state)
+    :c (clear state)
     :up (-> (update state :N inc) rehash)
     :down (-> (update state :N dec) (update :N max 1) rehash)
     state))
@@ -186,13 +191,15 @@
         bulk-insert-btn (.getElementById js/document "bulk-insert")
         delete-btn (.getElementById js/document "delete")
         resize-btn (.getElementById js/document "resize")
-        view-btn (.getElementById js/document "view")]
+        view-btn (.getElementById js/document "view")
+        clear-btn (.getElementById js/document "clear")]
     (.addEventListener js/window "resize" windowresize-handler)
     (.addEventListener insert-btn "click" #(do-op insert-node insert-random-node))
     (.addEventListener bulk-insert-btn "click" #(do-op bulk-insert bulk-insert))
     (.addEventListener delete-btn "click" #(do-op delete-node delete-random-node))
     (.addEventListener resize-btn "click" #(do-op resize rehash))
     (.addEventListener view-btn "click" #(do-op next-view next-view))
+    (.addEventListener clear-btn "click" #(do-op clear clear))
     (q/defsketch linear-probing
       :host "linear-probing"
       :size [w h]
