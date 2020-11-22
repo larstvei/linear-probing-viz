@@ -127,8 +127,6 @@
 (defn draw-state [{:keys [d N nodes view]}]
   (q/background 0)
   (q/translate (/ (q/width) 2) (/ (q/height) 2))
-  (q/no-stroke)
-  (q/no-fill)
   (dotimes [i N]
     (let [[x y] (i->pos (* 1.15 d) N i)
           [x1 y1] (i->pos (* 1.15 d) N i)
@@ -139,6 +137,7 @@
         :text (q/text (str i) x y)
         :dots (q/line x1 y1 x2 y2))))
 
+  (q/no-stroke)
   (doseq [[k {:keys [pos]}] nodes]
     (q/with-fill [(* 256 (/ (mod k N) N)) 255 255]
       (q/with-translation pos
