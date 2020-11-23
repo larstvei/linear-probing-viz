@@ -16,11 +16,11 @@
         r (/ d 2)]
     (mat/scale r [(q/cos theta) (q/sin theta)])))
 
-(defn seek [d N node]
+(defn seek [speed d N node]
   (let [{:keys [pos]} node
         target (i->pos d N (:target node))
         dir (mat/sub target pos)
-        vel (mat/scale 0.05 dir)]
+        vel (mat/scale (/ speed 1000) dir)]
     (update node :pos (partial mapv +) vel)))
 
 (defn set-target [d N A node]
@@ -103,9 +103,10 @@
   (rehash (assoc state :N k)))
 
 (defn set-text-size []
-  (let [font-size (/ (min (q/width) (q/height)) 25.0)
-        zoom (/ (- (.-outerWidth js/window) 1.0) (.-innerWidth js/window))]
-    (q/text-size (* zoom 20))))
+  (let [size (min (q/width) (q/height))
+        font-size (/ size 25.0)
+        zoom (/ (- size 1.0) size)]
+    (q/text-size (* zoom 20 (q/display-density)))))
 
 (defn setup []
   (q/text-font "Roboto Mono")
@@ -118,11 +119,12 @@
     {:d (get-d) :N N
      :nodes {}
      :A (vec (repeat N nil))
-     :view :text}))
+     :view :text
+     :speed 50}))
 
-(defn update-state [{:keys [d N A nodes] :as state}]
+(defn update-state [{:keys [d N A speed nodes] :as state}]
   (-> (assoc state :d (get-d))
-      (update :nodes (partial mapvals (partial seek d N)))
+      (update :nodes (partial mapvals (partial seek speed d N)))
       (update :nodes (partial mapvals (partial set-target d N A)))
       (update :A insert-nearby d N nodes)))
 
@@ -157,6 +159,12 @@
         (swap! (q/state-atom) op-default)
         (swap! (q/state-atom) op (int k))))))
 
+(defn set-speed []
+  (let [field (.getElementById js/document "speed")
+        speed (.-value field)]
+    (q/with-sketch (q/get-sketch-by-id "linear-probing")
+      (swap! (q/state-atom) assoc :speed speed))))
+
 (defn next-view [{:keys [view] :as state}]
   (let [new-view (second (drop-while (partial not= view) views))]
     (assoc state :view new-view)))
@@ -186,29 +194,33 @@
       (q/resize-sketch w h)
       (set-text-size))))
 
-(defn ^:export run-sketch []
-  (let [[w h] (get-size)
-        insert-btn (.getElementById js/document "insert")
+(defn add-listerners []
+  (let [insert-btn (.getElementById js/document "insert")
         bulk-insert-btn (.getElementById js/document "bulk-insert")
         delete-btn (.getElementById js/document "delete")
         resize-btn (.getElementById js/document "resize")
         view-btn (.getElementById js/document "view")
-        clear-btn (.getElementById js/document "clear")]
-    (.addEventListener js/window "resize" windowresize-handler)
+        clear-btn (.getElementById js/document "clear")
+        speed-slider (.getElementById js/document "speed")]
+    (.addEventListener js/window "resize" windowresize-handler true)
     (.addEventListener insert-btn "click" #(do-op insert-node insert-random-node))
     (.addEventListener bulk-insert-btn "click" #(do-op bulk-insert bulk-insert))
     (.addEventListener delete-btn "click" #(do-op delete-node delete-random-node))
     (.addEventListener resize-btn "click" #(do-op resize rehash))
     (.addEventListener view-btn "click" #(do-op next-view next-view))
     (.addEventListener clear-btn "click" #(do-op clear clear))
-    (q/defsketch linear-probing
-      :host "linear-probing"
-      :size [w h]
-      :setup setup
-      :update update-state
-      :key-pressed key-handler
-      :draw draw-state
-      :middleware [m/fun-mode])))
+    (.addEventListener speed-slider "input" #(set-speed))))
+
+(defn ^:export run-sketch []
+  (add-listerners)
+  (q/defsketch linear-probing
+    :host "linear-probing"
+    :size (get-size)
+    :setup setup
+    :update update-state
+    :key-pressed key-handler
+    :draw draw-state
+    :middleware [m/fun-mode]))
 
 ;; uncomment this line to reset the sketch:
 #_(run-sketch)
